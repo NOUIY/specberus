@@ -1,15 +1,11 @@
-/* eslint-disable import/no-dynamic-require */
-const {
-    buildCommonViewData,
-    buildNewFeatures,
-    data,
-    buildRecStability,
-} = require('./recommendationBase');
+import { config } from '../../../../lib/profiles/TR/Recommendation/REC.js';
+import recommendationBase from './recommendationBase.js';
+
+const { buildCommonViewData, buildNewFeatures, buildRecStability, data } =
+    recommendationBase;
 
 const profile = 'REC';
-const {
-    config,
-} = require(`../../../../lib/profiles/TR/Recommendation/${profile}`);
+const currentYear = new Date().getFullYear();
 const customData = {
     config: {
         ...config,
@@ -27,7 +23,7 @@ const customData = {
 const good = { ...data, ...customData };
 const common = buildCommonViewData(good);
 
-module.exports = {
+export default {
     good,
     ...common,
     stability: buildRecStability(good),
@@ -37,6 +33,66 @@ module.exports = {
             config: {
                 ...good.config,
                 needErrata: false,
+            },
+        },
+        recWithProposedSubChanges: {
+            ...good,
+            config: {
+                ...good.config,
+                needErrata: false,
+            },
+            sotd: {
+                ...good.sotd,
+                rec: {
+                    ...good.sotd.rec,
+                    showAddition: true,
+                    addition: 'It includes proposed corrections.',
+                },
+            },
+        },
+        recWithProposedNewChanges: {
+            ...good,
+            config: {
+                ...good.config,
+                needErrata: false,
+            },
+            sotd: {
+                ...good.sotd,
+                rec: {
+                    ...good.sotd.rec,
+                    showProposedAdd: true,
+                },
+            },
+        },
+        recWithCandidateSubChanges: {
+            ...good,
+            config: {
+                ...good.config,
+                needErrata: false,
+            },
+            sotd: {
+                ...good.sotd,
+                rec: {
+                    ...good.sotd.rec,
+                    showAddition: true,
+                    addition: 'It includes candidate corrections.',
+                },
+            },
+        },
+        recWithCandidateNewChanges: {
+            ...good,
+            config: {
+                ...good.config,
+                needErrata: false,
+            },
+            sotd: {
+                ...good.sotd,
+                rec: {
+                    ...good.sotd.rec,
+                    showAddition: true,
+                    addition:
+                        'It includes candidate additions, introducing new features since the previous Recommendation.',
+                },
             },
         },
     },
@@ -71,8 +127,7 @@ module.exports = {
                     ...good.sotd.rec,
                     showProposedAdd: true,
                 },
-                processHTML:
-                    '2 November 2023, 3 November 2023 <abbr title="World Wide Web Consortium">W3C</abbr> Process Document',
+                processHTML: `2 November ${currentYear}, 3 November ${currentYear} <abbr title="World Wide Web Consortium">W3C</abbr> Process Document`,
             },
         },
         notFound: {
@@ -84,7 +139,7 @@ module.exports = {
                     showProposedAdd: true,
                 },
                 processHTML:
-                    '2 November 2021 <abbr title="World Wide Web Consortium">W3C</abbr> Process Document',
+                    '03 November 2023 <abbr title="World Wide Web Consortium">W3C</abbr> Process Document',
             },
         },
     },

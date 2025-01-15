@@ -2,16 +2,27 @@
  * Main runnable file.
  */
 
-'use strict';
+import compression from 'compression';
+import cors from 'cors';
+import express from 'express';
+import fileUpload from 'express-fileupload';
+import { writeFile } from 'fs';
+import http from 'http';
+import insafe from 'insafe';
+import morgan from 'morgan';
+import { Server } from 'socket.io';
+import tmp from 'tmp';
+import * as api from './lib/api.js';
+import * as l10n from './lib/l10n.js';
+import { Sink } from './lib/sink.js';
+import { allProfiles, importJSON } from './lib/util.js';
+import { Specberus } from './lib/validator.js';
+import * as views from './lib/views.js';
+
+const { version } = importJSON('./package.json', import.meta.url);
 
 // Settings:
 const DEFAULT_PORT = 80;
-
-if (!process.env.W3C_API_KEY || process.env.W3C_API_KEY.length < 1) {
-    throw new Error(
-        'Pubrules is missing a valid key for the W3C API; define environment variable “W3C_API_KEY”'
-    );
-}
 
 if (!process.env.BASE_URI || process.env.BASE_URI.length < 1) {
     console.warn(
@@ -19,36 +30,23 @@ if (!process.env.BASE_URI || process.env.BASE_URI.length < 1) {
     );
 }
 
-// Native packages:
-const http = require('http');
-
-// External packages:
-const compression = require('compression');
-const express = require('express');
-const insafe = require('insafe');
-const morgan = require('morgan');
-const socket = require('socket.io');
-// Internal packages:
-const self = require('./package.json');
-const l10n = require('./lib/l10n');
-const sink = require('./lib/sink');
-const validator = require('./lib/validator');
-const views = require('./lib/views');
-const util = require('./lib/util');
-const api = require('./lib/api');
-
 const app = express();
 const server = http.createServer(app);
-const io = socket(server);
-const { Sink } = sink;
-const { version } = self;
+const io = new Server(server);
 // Middleware:
 app.use(morgan('combined'));
 app.use(compression());
-app.use('/badterms.json', require('cors')());
+app.use('/badterms.json', cors());
+app.use(
+    fileUpload({
+        createParentPath: true,
+        useTempFiles: true,
+        tempFileDir: '/tmp/',
+    })
+);
 
 app.use(express.static('public'));
-api.setUp(app, process.env.W3C_API_KEY);
+api.setUp(app);
 views.setUp(app);
 
 // @TODO Localize this properly when messages are translated; hard-coded British English for now.
@@ -59,9 +57,11 @@ server.listen(process.argv[2] || process.env.PORT || DEFAULT_PORT);
 io.on('connection', socket => {
     socket.emit('handshake', { version });
     socket.on('extractMetadata', data => {
-        if (!data.url)
-            return socket.emit('exception', { message: 'URL not provided.' });
-        const specberus = new validator.Specberus(process.env.W3C_API_KEY);
+        if (!data.url && !data.file)
+            return socket.emit('exception', {
+                message: 'URL or file not provided.',
+            });
+        const specberus = new Specberus();
         const handler = new Sink();
         handler.on('err', (type, data) => {
             try {
@@ -100,31 +100,30 @@ io.on('connection', socket => {
         handler.on('exception', data => {
             socket.emit('exception', data);
         });
-        specberus.extractMetadata({
-            url: data.url,
-            events: handler,
-        });
+        data.events = handler;
+        specberus.extractMetadata(data);
     });
-    socket.on('validate', data => {
-        if (!data.url)
-            return socket.emit('exception', { message: 'URL not provided.' });
+    socket.on('validate', async data => {
+        if (!data.url && !data.file)
+            return socket.emit('exception', {
+                message: 'URL or file not provided.',
+            });
         if (!data.profile)
             return socket.emit('exception', {
                 message: 'Profile not provided.',
             });
-        const profilePath = util.allProfiles.find(p =>
+        const profilePath = allProfiles.find(p =>
             p.endsWith(`/${data.profile}.js`)
         );
         let profile;
         try {
-            // eslint-disable-next-line import/no-dynamic-require
-            profile = require(`./lib/profiles/${profilePath}`);
+            profile = await import(`./lib/profiles/${profilePath}`);
         } catch (err) {
             return socket.emit('exception', {
-                message: 'Profile does not exist.',
+                message: `Failed to get profile ${profilePath}.`,
             });
         }
-        const specberus = new validator.Specberus(process.env.W3C_API_KEY);
+        const specberus = new Specberus();
         const handler = new Sink();
         const profileCode = profile.name;
         socket.emit('start', {
@@ -169,41 +168,70 @@ io.on('connection', socket => {
         handler.on('exception', data => {
             socket.emit('exception', data);
         });
-        insafe
-            .check({
-                url: data.url,
-                statusCodesAccepted: ['301', '406'],
-            })
-            .then(res => {
-                if (res.status) {
-                    try {
-                        specberus.validate({
-                            url: data.url,
-                            profile,
-                            events: handler,
-                            validation: data.validation,
-                            informativeOnly: data.informativeOnly,
-                            echidnaReady: data.echidnaReady,
-                            patentPolicy: data.patentPolicy,
-                        });
-                    } catch (e) {
-                        socket.emit('exception', {
-                            message: `Validation blew up: ${e}`,
-                        });
-                        socket.emit('finished');
+        if (data.url) {
+            insafe
+                .check({
+                    url: data.url,
+                    statusCodesAccepted: ['301', '406'],
+                })
+                .then(res => {
+                    if (res.status) {
+                        try {
+                            specberus.validate({
+                                url: data.url,
+                                profile,
+                                events: handler,
+                                validation: data.validation,
+                                informativeOnly: data.informativeOnly,
+                                echidnaReady: data.echidnaReady,
+                                patentPolicy: data.patentPolicy,
+                            });
+                        } catch (e) {
+                            socket.emit('exception', {
+                                message: `Validation blew up: ${e}`,
+                            });
+                            socket.emit('finished');
+                        }
+                    } else {
+                        const message = `Error while resolving <a href="${data.url}"><code>${data.url}</code></a>;
+                        check the spelling of the host, the protocol (<code>HTTP</code>, <code>HTTPS</code>)
+                        and ensure that the page is accessible from the public internet.`;
+                        socket.emit('exception', { message });
                     }
-                } else {
-                    const message = `Error while resolving <a href="${data.url}"><code>${data.url}</code></a>;
-                    check the spelling of the host, the protocol (<code>HTTP</code>, <code>HTTPS</code>)
-                    and ensure that the page is accessible from the public internet.`;
-                    socket.emit('exception', { message });
-                }
-            })
-            .catch(e => {
+                })
+                .catch(e => {
+                    socket.emit('exception', {
+                        message: `Insafe check blew up: ${e}`,
+                    });
+                    socket.emit('finished');
+                });
+        } else {
+            try {
+                specberus.validate({
+                    file: data.file,
+                    profile,
+                    events: handler,
+                    validation: data.validation,
+                    informativeOnly: data.informativeOnly,
+                    echidnaReady: data.echidnaReady,
+                    patentPolicy: data.patentPolicy,
+                });
+            } catch (e) {
                 socket.emit('exception', {
-                    message: `Insafe check blew up: ${e}`,
+                    message: `Validation blew up: ${e}`,
                 });
                 socket.emit('finished');
+            }
+        }
+    });
+
+    socket.on('upload', (file, callback) => {
+        const tmpfile = tmp.fileSync().name;
+        writeFile(tmpfile, file, err => {
+            callback({
+                status: err ? 'failure' : 'success',
+                filename: tmpfile,
             });
+        });
     });
 });

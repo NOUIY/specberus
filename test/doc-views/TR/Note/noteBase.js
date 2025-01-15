@@ -1,8 +1,6 @@
-const {
-    buildCommonViewData: _buildCommonViewData,
-    data,
-    ...rest
-} = require('../TRBase');
+import * as TRBase from '../TRBase.js';
+
+const { buildCommonViewData: _buildCommonViewData, data, ...rest } = TRBase;
 
 const buildCommonViewData = base => {
     const common = _buildCommonViewData(base);
@@ -24,7 +22,24 @@ const buildCommonViewData = base => {
                 sotd: {
                     ...base.sotd,
                     noteNotEndorsedText:
-                        'are not endorsed by FAKE nor its Members',
+                        'Group Notes are not endorsed by FAKE nor its Members',
+                },
+            },
+            supportAnotherSW: {
+                ...base,
+                sotd: {
+                    ...base.sotd,
+                    noteNotEndorsedText:
+                        'This Group Note is endorsed by the Internationalization Working Group, but is not endorsed by W3C itself nor its Members',
+                },
+            },
+            supportAnotherSWJoint: {
+                ...base,
+                sotd: {
+                    ...base.sotd,
+                    noteNotEndorsedText:
+                        'This Group Note is endorsed by the Decentralized Identifier Working Group and the Technical Architecture Group, but is not endorsed by W3C itself nor its Members',
+                    group: 'Decentralized Identifier Working Group and the Technical Architecture Group',
                 },
             },
         },
@@ -59,22 +74,6 @@ const buildCommonViewData = base => {
                     ppLink1: 'https://www.w3.org/Consortium/fake-pp',
                 },
             },
-            noPP2017: {
-                ...base,
-                config: {
-                    ...base.config,
-                    isEchidna: false,
-                },
-                header: {
-                    ...base.header,
-                    defaultDate: '04 November 2019',
-                },
-                sotd: {
-                    ...base.sotd,
-                    ppDate: '1 August 2017',
-                    ppLink1: 'https://www.w3.org/Consortium/fake-one',
-                },
-            },
             noPP2020: {
                 ...base,
                 sotd: {
@@ -86,7 +85,7 @@ const buildCommonViewData = base => {
     };
 };
 
-module.exports = {
+export default {
     ...rest,
     buildCommonViewData,
     data: {

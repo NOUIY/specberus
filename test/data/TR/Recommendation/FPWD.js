@@ -1,9 +1,21 @@
-const { rules, draftStabilityRules } = require('./recommendationBase');
+import recommendationBase from './recommendationBase.js';
 
-exports.rules = {
-    ...rules,
+const { rules: baseRules, draftStabilityRules } = recommendationBase;
+
+export const rules = {
+    ...baseRules,
     sotd: {
-        ...rules.sotd,
+        ...baseRules.sotd,
         'draft-stability': draftStabilityRules,
+    },
+    headers: {
+        ...baseRules.headers,
+        shortname: [
+            ...baseRules.headers.shortname,
+            {
+                data: 'shortnameLowercaseFP',
+                errors: ['headers.shortname.shortname-lowercase'],
+            },
+        ],
     },
 };

@@ -1,8 +1,5 @@
-/* eslint-disable import/no-dynamic-require */
-const { buildCommonViewData, data } = require('../specBase');
-
-const profile = 'MEM-SUBM';
-const { config } = require(`../../../lib/profiles/SUBM/${profile}`);
+import { config } from '../../../lib/profiles/SUBM/MEM-SUBM.js';
+import { buildCommonViewData, data } from '../specBase.js';
 
 // Used in http://localhost:8001/doc-views/TR/Recommendation/MEM-SUBM?type=good
 const good = {
@@ -16,11 +13,11 @@ const good = {
     },
     dl: {
         ...data.dl,
-        topLevel: 'Submission',
+        topLevel: 'submissions',
         latestVersion: {
             ...data.dl.latestVersion,
-            docType: 'Submission',
-            textDocType: 'Submission',
+            docType: 'submissions',
+            textDocType: 'submissions',
         },
     },
     config: {
@@ -31,7 +28,7 @@ const good = {
     },
 };
 
-module.exports = {
+export default {
     good,
     ...buildCommonViewData(good),
     'memsub-copyright': {
@@ -46,7 +43,7 @@ module.exports = {
             copyright: {
                 ...good.copyright,
                 licenseHTML:
-                    'W3C <a href="https://fake-url#Legal_Disclaimer">liability</a>, <a href="https://fake-url#W3C_Trademarks">trademark</a> and <a rel="license" href="https://www.w3.org/Consortium/Legal/2015/copyright-software-and-document">permissive document license</a> rules apply.',
+                    'W3C <a href="https://fake-url#Legal_Disclaimer">liability</a>, <a href="https://fake-url#W3C_Trademarks">trademark</a> and <a rel="license" href="https://www.w3.org/copyright/software-license-2023/">permissive document license</a> rules apply.',
             },
         },
     },
@@ -66,7 +63,7 @@ module.exports = {
                 ...good.sotd,
                 submission: {
                     ...good.sotd.submission,
-                    processLink: 'https://fake-url/Consortium/Process',
+                    processLink: 'https://fake-url/policies/process/',
                 },
             },
         },
@@ -97,7 +94,7 @@ module.exports = {
                 ...good.sotd,
                 submission: {
                     ...good.sotd.submission,
-                    submissionLink: 'https://fake-url/Submission',
+                    submissionLink: 'https://fake-url/submissions',
                 },
             },
         },
@@ -108,7 +105,7 @@ module.exports = {
                 submission: {
                     ...good.sotd.submission,
                     submissionMemberLink:
-                        'https://fake-url/Submission/2020/02/',
+                        'https://fake-url/submissions/2020/02/',
                 },
             },
         },
@@ -119,7 +116,7 @@ module.exports = {
                 submission: {
                     ...good.sotd.submission,
                     submissionComment:
-                        'https://fake-url/Submission/2020/02/Comment/',
+                        'https://fake-url/submissions/2020/02/Comment/',
                 },
             },
         },

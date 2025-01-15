@@ -9,12 +9,14 @@ updates:
     ignore:
       - dependency-name: '*'
         update-types: ['version-update:semver-patch']
-  - package-ecosystem: npm
-    directory: '/'
-    schedule:
-      interval: monthly
-      time: '00:00'
-    open-pull-requests-limit: 99
+      - dependency-name: 'cspell'
+        update-types: ['version-update:semver-minor']
+      - dependency-name: 'eslint*'
+        update-types: ['version-update:semver-minor']
+      - dependency-name: 'husky'
+        update-types: ['version-update:semver-minor']
+      - dependency-name: 'nodemon'
+        update-types: ['version-update:semver-minor']
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
