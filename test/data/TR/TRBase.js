@@ -1,8 +1,8 @@
-const { rules } = require('../specBase');
+import { rules as baseRules } from '../specBase.js';
 
-exports.rules = {
+export const rules = {
     headers: {
-        ...rules.headers,
+        ...baseRules.headers,
         'github-repo': [
             {
                 data: 'noFeedback',
@@ -18,19 +18,41 @@ exports.rules = {
                 data: 'noCopyright',
                 errors: ['headers.copyright.not-found'],
             },
+            {
+                data: 'noMatchedCopyright',
+                errors: ['headers.copyright.no-match'],
+            },
+            {
+                data: 'wrongCopyrightLink',
+                errors: ['headers.copyright.href-not-match'],
+            },
+            {
+                data: 'copyrightExceptionFound',
+                errors: [],
+            },
+            {
+                data: 'copyrightExceptionNotFound',
+                errors: ['headers.copyright.exception-no-html'],
+            },
+        ],
+        'editor-participation': [
+            {
+                data: 'noEditorParticipation',
+                errors: ['headers.editor-participation.not-participating'],
+            },
         ],
     },
     style: {
-        ...rules.style,
+        ...baseRules.style,
     },
     heuristic: {
-        ...rules.heuristic,
+        ...baseRules.heuristic,
     },
     links: {
-        ...rules.links,
+        ...baseRules.links,
     },
     structure: {
-        ...rules.structure,
+        ...baseRules.structure,
     },
     sotd: {
         supersedable: [
@@ -41,13 +63,6 @@ exports.rules = {
             {
                 data: 'noProcess',
                 errors: ['sotd.process-document.not-found'],
-            },
-            {
-                data: 'wrongLink',
-                errors: [
-                    'sotd.process-document.wrong-link',
-                    'sotd.process-document.not-found',
-                ],
             },
             {
                 data: 'duplicatedProcess',
@@ -95,17 +110,6 @@ exports.rules = {
                 errors: ['sotd.pp.no-pp-from-charter'],
             },
             {
-                data: 'noPP2017',
-                config: {
-                    patentPolicy: 'pp2004',
-                },
-                errors: [
-                    'sotd.pp.no-pp2017',
-                    'sotd.pp.no-claims',
-                    'sotd.pp.no-section6',
-                ],
-            },
-            {
                 data: 'noPP2020',
                 config: {
                     patentPolicy: 'pp2020',
@@ -127,11 +131,11 @@ exports.rules = {
         ],
     },
     validation: {
-        ...rules.validation,
+        ...baseRules.validation,
     },
 };
 
-exports.candidateReviewEndRules = [
+export const candidateReviewEndRules = [
     {
         data: 'noDateFound',
         errors: ['sotd.candidate-review-end.not-found'],
@@ -146,7 +150,7 @@ exports.candidateReviewEndRules = [
     },
 ];
 
-exports.echidnaRules = {
+export const echidnaRules = {
     'todays-date': [
         {
             data: 'noDateDetected',
@@ -157,23 +161,29 @@ exports.echidnaRules = {
             errors: ['echidna.todays-date.wrong-date'],
         },
     ],
+    'deliverer-change': [
+        {
+            data: 'delivererChanged',
+            errors: ['echidna.deliverer-change.deliverer-changed'],
+        },
+    ],
 };
 
-exports.draftStabilityRules = [
+export const draftStabilityRules = [
     {
         data: 'noDraft',
         errors: ['sotd.draft-stability.not-found'],
     },
 ];
 
-exports.draftStabilityRulesForDraft = [
+export const draftStabilityRulesForDraft = [
     {
         data: 'noDraftEither',
         errors: ['sotd.draft-stability.not-found-either'],
     },
 ];
 
-exports.newFeaturesRules = [
+export const newFeaturesRules = [
     {
         data: 'noWarning',
         warnings: ['sotd.new-features.no-warning'],

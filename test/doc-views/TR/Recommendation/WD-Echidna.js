@@ -1,16 +1,17 @@
-/* eslint-disable import/no-dynamic-require */
-const data = require('./WD').good;
+import { config } from '../../../../lib/profiles/TR/Recommendation/WD-Echidna.js';
+import recommendationBase from './recommendationBase.js';
+import WD from './WD.js';
+
+const { good: data } = WD;
 const {
     buildCommonViewData,
     buildDraftStability,
     buildSecurityPrivacy,
     buildTodaysDate,
-} = require('./recommendationBase');
+    buildDelivererChange,
+} = recommendationBase;
 
 const profile = 'WD-Echidna';
-const {
-    config,
-} = require(`../../../../lib/profiles/TR/Recommendation/${profile}`);
 const customData = {
     config: {
         ...config,
@@ -24,7 +25,7 @@ const customData = {
 const good = { ...data, ...customData };
 const common = buildCommonViewData(good);
 
-module.exports = {
+export default {
     good,
     ...common,
     'draft-stability': buildDraftStability(good),
@@ -39,19 +40,10 @@ module.exports = {
             },
             header: {
                 ...good.header,
-                defaultDate: '04 October 2021',
-            },
-        },
-    },
-    pp: {
-        ...common.pp,
-        noPP2017: {
-            ...common.pp.noPP2017,
-            config: {
-                ...common.pp.noPP2017.config,
-                isEchidna: false,
+                defaultDate: '04 October 2023',
             },
         },
     },
     'todays-date': buildTodaysDate(good),
+    'deliverer-change': buildDelivererChange(good),
 };
