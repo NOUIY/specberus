@@ -1,9 +1,6 @@
-const {
-    buildCommonViewData: _buildCommonViewData,
-    data,
-    ...rest
-} = require('../TRBase');
+import * as TRBase from '../TRBase.js';
 
+const { buildCommonViewData: _buildCommonViewData, data, ...rest } = TRBase;
 const buildCommonViewData = base => {
     const common = _buildCommonViewData(base);
     return {
@@ -24,18 +21,6 @@ const buildCommonViewData = base => {
         },
         pp: {
             ...common.pp,
-            noPP2017: {
-                ...base,
-                header: {
-                    ...base.header,
-                    defaultDate: '04 November 2019',
-                },
-                sotd: {
-                    ...base.sotd,
-                    ppDate: '1 August 2017',
-                    ppLink1: 'https://www.w3.org/Consortium/fake-one',
-                },
-            },
             noPP2020: {
                 ...base,
                 sotd: {
@@ -52,7 +37,7 @@ const buildCommonViewData = base => {
     };
 };
 
-module.exports = {
+export default {
     ...rest,
     buildCommonViewData,
     data: {

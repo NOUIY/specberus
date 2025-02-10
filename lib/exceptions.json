@@ -3,26 +3,11 @@
         {
             "rule": "validation.html",
             "type": "noexistence-at-all",
-            "message": "CSS: “caret-shape”: Property “caret-shape” doesn't exist."
+            "message": "^CSS: .*$"
         },
         {
             "rule": "validation.html",
             "message": "Bad value “publication” for attribute “rel” on element “link”: The string “publication” is not a registered keyword."
-        }
-    ],
-    "^webrtc$": [
-        {
-            "rule": "headers.copyright"
-        }
-    ],
-    "^security-privacy-questionnaire$": [
-        {
-            "rule": "headers.copyright"
-        }
-    ],
-    "^mediacapture-streams$": [
-        {
-            "rule": "headers.copyright"
         }
     ],
     "^audiobooks$": [
@@ -30,14 +15,25 @@
             "rule": "sotd.candidate-review-end"
         }
     ],
+    "^did-core$": [
+        {
+            "rule": "heuristic.date-format"
+        }
+    ],
+    "^privacy-principles$": [
+        {
+            "rule": "headers.editor-participation"
+        }
+    ],
     "^pub-manifest$": [
         {
             "rule": "sotd.candidate-review-end"
         }
     ],
-    "^did-core$": [
+    "^webgpu|WGSL$": [
         {
-            "rule": "heuristic.date-format"
+            "rule": "headers.dl",
+            "message": "Implementation report"
         }
     ]
 }

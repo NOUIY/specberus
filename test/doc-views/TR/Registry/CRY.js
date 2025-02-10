@@ -1,8 +1,10 @@
-/* eslint-disable import/no-dynamic-require */
-const { buildCommonViewData, data } = require('./registryBase');
+import { config } from '../../../../lib/profiles/TR/Registry/CRY.js';
+import registryBase from './registryBase.js';
+
+const { buildCommonViewData, data } = registryBase;
+const currentYear = new Date().getFullYear();
 
 const profile = 'CRY';
-const { config } = require(`../../../../lib/profiles/TR/Registry/${profile}`);
 const customData = {
     config: {
         ...config,
@@ -19,7 +21,7 @@ const customData = {
 const good = { ...data, ...customData };
 const common = buildCommonViewData(good);
 
-module.exports = {
+export default {
     good,
     ...common,
     'candidate-review-end': {
@@ -27,15 +29,14 @@ module.exports = {
             ...good,
             header: {
                 ...good.header,
-                defaultDate: '04 November 2024',
+                defaultDate: `04 November ${currentYear}`,
             },
         },
         multipleDateFound: {
             ...good,
             sotd: {
                 ...good.sotd,
-                processHTML:
-                    '04 October 2022. 05 October 2022.<abbr title="World Wide Web Consortium">W3C</abbr> Process Document',
+                processHTML: `04 October ${currentYear}. 05 October ${currentYear}.<abbr title="World Wide Web Consortium">W3C</abbr> Process Document`,
             },
         },
         invalidDate: {

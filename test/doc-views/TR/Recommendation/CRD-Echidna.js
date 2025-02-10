@@ -1,16 +1,17 @@
-/* eslint-disable import/no-dynamic-require */
-const data = require('./CRD').good;
+import { config } from '../../../../lib/profiles/TR/Recommendation/CRD-Echidna.js';
+import CRD from './CRD.js';
+import recommendationBase from './recommendationBase.js';
+
+const { good: data } = CRD;
 const {
     buildCommonViewData,
-    buildTodaysDate,
     buildDraftStability,
     buildSecurityPrivacy,
-} = require('./recommendationBase');
+    buildTodaysDate,
+    buildDelivererChange,
+} = recommendationBase;
 
 const profile = 'CRD-Echidna';
-const {
-    config,
-} = require(`../../../../lib/profiles/TR/Recommendation/${profile}`);
 const customData = {
     config: {
         ...config,
@@ -25,7 +26,7 @@ const good = { ...data, ...customData };
 
 const common = buildCommonViewData(good);
 
-module.exports = {
+export default {
     good,
     ...common,
     dl: {
@@ -38,21 +39,12 @@ module.exports = {
             },
             header: {
                 ...good.header,
-                defaultDate: '04 October 2022',
+                defaultDate: '04 October 2023',
             },
         },
     },
     'draft-stability': buildDraftStability(good),
-    pp: {
-        ...common.pp,
-        noPP2017: {
-            ...common.pp.noPP2017,
-            config: {
-                ...common.pp.noPP2017.config,
-                isEchidna: false,
-            },
-        },
-    },
     'todays-date': buildTodaysDate(good),
     'security-privacy': buildSecurityPrivacy(good),
+    'deliverer-change': buildDelivererChange(good),
 };

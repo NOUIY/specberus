@@ -1,13 +1,16 @@
-/* eslint-disable import/no-dynamic-require */
-const data = require('./DNOTE').good;
+import { config } from '../../../../lib/profiles/TR/Note/DNOTE-Echidna.js';
+import DNOTE from './DNOTE.js';
+import noteBase from './noteBase.js';
+
+const { good: data } = DNOTE;
 const {
     buildCommonViewData,
     buildDraftStability,
     buildTodaysDate,
-} = require('./noteBase');
+    buildDelivererChange,
+} = noteBase;
 
 const profile = 'DNOTE-Echidna';
-const { config } = require(`../../../../lib/profiles/TR/Note/${profile}`);
 const customData = {
     config: {
         ...config,
@@ -21,7 +24,7 @@ const customData = {
 const good = { ...data, ...customData };
 const common = buildCommonViewData(good);
 
-module.exports = {
+export default {
     good,
     ...common,
     dl: {
@@ -46,4 +49,5 @@ module.exports = {
     },
     'draft-stability': buildDraftStability(good),
     'todays-date': buildTodaysDate(good),
+    'deliverer-change': buildDelivererChange(good),
 };

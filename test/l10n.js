@@ -2,18 +2,18 @@
  * Test L10n features.
  */
 
-/* globals expect: true */
-
 // Native packages:
-const fs = require('fs');
-
 // External packages:
-const chai = require('chai');
-const chaiAsPromised = require('chai-as-promised');
+import * as chai from 'chai';
+import chaiAsPromised from '@rvagg/chai-as-promised';
+import fs from 'fs';
+import * as l10n from '../lib/l10n-en_GB.js';
+import { importJSON } from '../lib/util.js';
 
 // Internal packages:
-const rules = require('../lib/rules.json');
-const l10n = require('../lib/l10n-en_GB');
+const rules = importJSON('../lib/rules.json', import.meta.url);
+
+const { expect } = chai;
 
 // Constants:
 const { messages } = l10n;
@@ -27,7 +27,6 @@ const exceptionFinder = /emits\s*:\s*["']([^()"'{}]+)["']/g;
 
 const setUp = function () {
     chai.use(chaiAsPromised);
-    expect = chai.expect;
 };
 
 /**
@@ -112,7 +111,6 @@ const scanFileSystem = function () {
         const result = {};
         fs.readdir(baseDir, (err, dirs) => {
             if (err)
-                // eslint-disable-next-line
                 reject(
                     `Error: could not read directory “${baseDir}”: “${err}”`
                 );
@@ -126,7 +124,6 @@ const scanFileSystem = function () {
                         const readFile = function (file) {
                             return function (err, data) {
                                 if (err)
-                                    // eslint-disable-next-line
                                     reject(
                                         `Error: could not read file ${dir}/${file}: ${err}`
                                     );
@@ -204,8 +201,9 @@ describe('L10n', () => {
     describe('UI messages module', () => {
         it('“lib/rules-wrapper” should be a valid object', () =>
             expect(rules).to.be.an('object'));
-        it('“lib/l10n-en_GB” should be a valid object', () =>
-            expect(l10n).to.be.an('object'));
+        it('“lib/l10n-en_GB” should be a valid object', () => {
+            expect(typeof l10n).to.equal('object');
+        });
     });
 
     describe('Consistency between rules and L10n messages', () => {

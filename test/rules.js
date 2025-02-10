@@ -1,4 +1,20 @@
-/* eslint-disable import/no-dynamic-require */
+// Native packages:
+import { expect as chai } from 'chai';
+import expect from 'expect.js';
+
+import nock from 'nock';
+import { Sink } from '../lib/sink.js';
+import { allProfiles } from '../lib/util.js';
+// Internal packages:
+import { Specberus } from '../lib/validator.js';
+// A list of good documents to be tested, using all rules configured in the profiles.
+// Shouldn't cause any error.
+import { goodDocuments } from './data/goodDocuments.js';
+import { samples } from './samples.js';
+import { app } from './lib/testserver.js';
+import { buildBadTestCases, equivalentArray } from './lib/utils.js';
+import { nockData } from './lib/nockData.js';
+
 /**
  * Test the rules.
  */
@@ -8,45 +24,12 @@ const DEBUG = process.env.DEBUG || false;
 const DEFAULT_PORT = 8001;
 const PORT = process.env.PORT || DEFAULT_PORT;
 const ENDPOINT = `http://localhost:${PORT}`;
-// Native packages:
-const pth = require('path');
-const { readdirSync, lstatSync } = require('fs');
 
-// External packages:
-const express = require('express');
-const expect = require('expect.js');
-const chai = require('chai').expect;
-const exphbs = require('express-handlebars');
-
-// Internal packages:
-const { Specberus } = require('../lib/validator');
-const { Sink } = require('../lib/sink');
-const util = require('../lib/util');
-const { samples } = require('./samples');
-
-/**
- * Compare two arrays of "deliverer IDs" and check that they're equivalent.
- *
- * @param {Array} a1 - One array.
- * @param {Array} a2 - The other array.
- * @returns {Boolean} whether the two arrays contain exactly the same integers.
- */
-
-const equivalentArray = function (a1, a2) {
-    if (a1 && a2 && a1.length === a2.length) {
-        let found = 0;
-        for (let i = 0; i < a1.length; i += 1) {
-            for (let j = 0; j < a2.length && found === i; j += 1) {
-                if (a1[i] === a2[j]) {
-                    found += 1;
-                }
-            }
-        }
-        return found === a1.length;
-    }
-
-    return false;
-};
+// These 3 environment variables are to reduce test documents.
+// e.g. `RULE=copyright TYPE=noCopyright PROFILE=WD npm run test`
+const testRule = process.env.RULE;
+const testType = process.env.TYPE;
+const testProfile = process.env.PROFILE;
 
 /**
  * Assert that metadata detected in a spec is equal to the expected values.
@@ -57,7 +40,7 @@ const equivalentArray = function (a1, a2) {
  */
 
 const compareMetadata = function (url, file, expectedObject) {
-    const specberus = new Specberus(process.env.W3C_API_KEY);
+    const specberus = new Specberus();
     const handler = new Sink(data => {
         throw new Error(data);
     });
@@ -141,7 +124,7 @@ const compareMetadata = function (url, file, expectedObject) {
 };
 
 describe('Basics', () => {
-    const specberus = new Specberus(process.env.W3C_API_KEY);
+    const specberus = new Specberus();
 
     describe('Method "extractMetadata"', () => {
         it('Should exist and be a function', done => {
@@ -174,200 +157,45 @@ describe('Basics', () => {
     });
 });
 
-// start an server to host doc, response to sr.url requests
-const app = express();
-app.use('/docs', express.static(pth.join(__dirname, 'docs')));
+let testserver;
 
-// use express-handlebars
-app.engine(
-    'handlebars',
-    exphbs.engine({
-        defaultLayout: pth.join(__dirname, './doc-views/layout/spec'),
-        layoutsDir: pth.join(__dirname, './doc-views'),
-        partialsDir: pth.join(__dirname, './doc-views/partials/'),
-    })
-);
-app.set('view engine', 'handlebars');
-app.set('views', pth.join(__dirname, './doc-views'));
-
-function renderByConfig(req, res) {
-    const { rule, type } = req.query;
-    const suffix = req.params.track
-        ? `${req.params.track}/${req.params.profile}`
-        : req.params.profile;
-
-    // get data for template from json (.js)
-    const data = require(pth.join(
-        __dirname,
-        `./doc-views/${req.params.docType}/${suffix}.js`
-    ));
-
-    let finalData;
-    if (!type)
-        res.send('<h1>Error: please add the parameter "type" in the URL </h1>');
-    else if (type.startsWith('good')) {
-        finalData = data[type];
-    } else {
-        if (!rule)
-            res.send(
-                '<h1>Error: please add the parameter "rule" in the URL </h1>'
-            );
-
-        // for data causes error, make rule and the type of error specific.
-        finalData = data[rule][type];
-    }
-    res.render(pth.join(__dirname, './doc-views/layout/spec'), finalData);
-}
-
-app.get('/doc-views/:docType/:track/:profile', renderByConfig);
-app.get('/doc-views/:docType/:profile', renderByConfig);
-
-// config single redirection
-app.get('/docs/links/image/logo', (req, res) => {
-    res.redirect('/docs/links/image/logo.png');
-});
-// config single redirection to no where (404)
-app.get('/docs/links/image/logo-fail', (req, res) => {
-    res.redirect('/docs/links/image/logo-fail.png');
-});
-// config multiple redirection
-app.get('/docs/links/image/logo-redirection-1', (req, res) => {
-    res.redirect(301, '/docs/links/image/logo-redirection-2');
-});
-app.get('/docs/links/image/logo-redirection-2', (req, res) => {
-    res.redirect(307, '/docs/links/image/logo-redirection-3');
-});
-app.get('/docs/links/image/logo-redirection-3', (req, res) => {
-    res.redirect('/docs/links/image/logo.png');
+before(done => {
+    testserver = app.listen(PORT, done);
 });
 
-let server;
-
-before(() => {
-    server = app.listen(PORT);
-});
-
-after(() => {
-    if (server) {
-        server.close();
+after(done => {
+    if (testserver) {
+        testserver.close(done);
     }
 });
 
 function buildHandler(test, mock, done) {
     const handler = new Sink();
 
-    const nock = require('nock');
     if (mock) {
         // Mock some external calls to speed up the test suite
         nock('https://www.w3.org', { allowUnmocked: true })
             .head('/standards/history/hr-time')
             .reply(200, 'HR Time history page');
-        const versions = {
-            page: 1,
-            pages: 1,
-            _embedded: {
-                'version-history': [
-                    {
-                        uri: 'https://www.w3.org/TR/2022/WD-hr-time-3-20220117/',
-                    },
-                    {
-                        uri: 'https://www.w3.org/TR/2021/WD-hr-time-3-20211201/',
-                    },
-                    {
-                        uri: 'https://www.w3.org/TR/2021/WD-hr-time-3-20211012/',
-                    },
-                ],
-            },
-        };
+        const { versions } = nockData;
+
         nock('https://api.w3.org', { allowUnmocked: true })
             .get('/specifications/hr-time/versions')
             .query({ embed: true })
             .reply(200, versions);
 
-        const groupNames = {
-            'i18n-core': 32113,
-            forms: 32219,
-            apa: 83907,
-            ag: 35422,
-        };
+        const { groupNames } = nockData;
         Object.keys(groupNames).forEach(groupName => {
             const groupId = groupNames[groupName];
             nock('https://api.w3.org', { allowUnmocked: true })
-                .get(
-                    `/groups/wg/${groupName}?apikey=${process.env.W3C_API_KEY}`
-                )
+                .get(`/groups/wg/${groupName}`)
                 .reply(200, {
                     id: groupId,
                     type: 'working group',
                 });
         });
 
-        const chartersData = {
-            32113: [
-                {
-                    end: '2021-09-30',
-                    'doc-licenses': [
-                        {
-                            uri: 'https://www.w3.org/Consortium/Legal/copyright-software',
-                            name: 'W3C Software and Document License',
-                        },
-                    ],
-                    start: '2019-06-28',
-                    'patent-policy':
-                        'https://www.w3.org/Consortium/Patent-Policy-20170801/',
-                },
-                {
-                    end: '2024-09-30',
-                    'doc-licenses': [
-                        {
-                            uri: 'https://www.w3.org/Consortium/Legal/copyright-software',
-                            name: 'W3C Software and Document License',
-                        },
-                    ],
-                    start: '2021-09-30',
-                    'patent-policy':
-                        'https://www.w3.org/Consortium/Patent-Policy-20200915/',
-                },
-            ],
-            32219: {
-                end: '2012-03-31',
-                'doc-licenses': [],
-                start: '2010-05-17',
-            },
-            83907: {
-                end: '2023-07-31',
-                'doc-licenses': [
-                    {
-                        uri: 'https://www.w3.org/Consortium/Legal/copyright-documents',
-                        name: 'W3C Document License',
-                    },
-                    {
-                        uri: 'https://www.w3.org/Consortium/Legal/copyright-software',
-                        name: 'W3C Software and Document License',
-                    },
-                ],
-                start: '2021-08-11',
-                'patent-policy':
-                    'https://www.w3.org/Consortium/Patent-Policy-20200915/',
-            },
-            35422: {
-                end: '2022-10-31',
-                'doc-licenses': [
-                    {
-                        uri: 'https://www.w3.org/Consortium/Legal/copyright-documents',
-                        name: 'W3C Document License',
-                    },
-                    {
-                        uri: 'https://www.w3.org/Consortium/Legal/copyright-software',
-                        name: 'W3C Software and Document License',
-                    },
-                ],
-                start: '2019-12-20',
-                'patent-policy':
-                    'https://www.w3.org/Consortium/Patent-Policy-20170801/',
-            },
-        };
-
+        const { chartersData } = nockData;
         Object.keys(chartersData).forEach(groupId => {
             const charterData = Array.isArray(chartersData[groupId])
                 ? chartersData[groupId]
@@ -431,10 +259,6 @@ function buildHandler(test, mock, done) {
     return handler;
 }
 
-// A list of good documents to be tested, using all rules configured in the profiles.
-// Shouldn't cause any error.
-const { goodDocuments } = require('./data/goodDocuments');
-
 const testsGoodDoc = goodDocuments;
 
 // The next check is running each profile using the rules configured.
@@ -442,97 +266,116 @@ describe('Making sure good documents pass Specberus...', () => {
     Object.keys(testsGoodDoc).forEach(docProfile => {
         // testsGoodDoc[docProfile].profile is used to distinguish multiple cases for same profile.
         docProfile = testsGoodDoc[docProfile].profile || docProfile;
+        if (testProfile && testProfile !== docProfile) return;
 
         const url = `${ENDPOINT}/${testsGoodDoc[docProfile].url}`;
+
         it(`should pass for ${docProfile} doc with ${url}`, done => {
-            const profilePath = util.allProfiles.find(p =>
+            const { deliverers } = nockData;
+            nock('https://api.w3.org', { allowUnmocked: true })
+                .get(/\/specifications\/hr-time[-0-9a-zA-Z]*\/versions\/w*/)
+                .query({ embed: true })
+                .reply(200, deliverers);
+
+            const profilePath = allProfiles.find(p =>
                 p.endsWith(`/${docProfile}.js`)
             );
-            const profile = require(`../lib/profiles/${profilePath}`);
-
-            // add custom config to test
-            profile.config = {
-                patentPolicy: 'pp2020', // default config for all docs.
-                ...profile.config,
-                ...testsGoodDoc[docProfile].config,
-            };
-
-            // remove unnecessary rules from test
-            const { removeRules } = require('../lib/profiles/profileUtil');
-            const rules = removeRules(profile.rules, [
-                'validation.html',
-                'validation.wcag',
-                'links.linkchecker', // too slow. will check separately.
-            ]);
-
-            const options = {
-                profile: {
+            import(`../lib/profiles/${profilePath}`).then(profile => {
+                // add custom config to test
+                const extendedProfile = {
                     ...profile,
-                    rules, // do not change profile.rules
-                },
-                events: buildHandler({ ignoreWarnings: true }, false, done),
-                url,
-            };
+                    config: {
+                        patentPolicy: 'pp2020', // default config for all docs.
+                        ...profile.config,
+                        ...testsGoodDoc[docProfile].config,
+                    },
+                };
 
-            // for (const o in test.options) options[o] = test.options[o];
-            new Specberus(process.env.W3C_API_KEY).validate(options);
+                // remove unnecessary rules from test
+                import('../lib/profiles/profileUtil.js').then(
+                    ({ removeRules }) => {
+                        const rules = removeRules(extendedProfile.rules, [
+                            'validation.html',
+                            'validation.wcag',
+                            'links.linkchecker', // too slow. will check separately.
+                        ]);
+
+                        const options = {
+                            profile: {
+                                ...extendedProfile,
+                                rules, // do not change profile.rules
+                            },
+                            events: buildHandler(
+                                { ignoreWarnings: true },
+                                false,
+                                done
+                            ),
+                            url,
+                        };
+
+                        // for (const o in test.options) options[o] = test.options[o];
+                        new Specberus().validate(options);
+                    }
+                );
+            });
         });
     });
 });
 
 function checkRule(tests, options) {
     const { docType, track, profile, category, rule } = options;
+
     tests.forEach(test => {
         const passOrFail = !test.errors ? 'pass' : 'fail';
         const suffix = track ? `${track}/${profile}` : profile;
         const url = `${ENDPOINT}/doc-views/${docType}/${suffix}?rule=${rule}&type=${test.data}`;
-        const { config } = require(`../lib/profiles/${docType}/${suffix}`);
+
+        // If the test is not mentioned in the environment variables, skip it.
+        if (
+            (testRule && rule !== testRule) ||
+            (testType && test.data !== testType) ||
+            (testProfile && profile !== testProfile)
+        )
+            return;
 
         it(`should ${passOrFail} for ${url}`, done => {
-            const options = {
-                url,
-                profile: {
-                    name: `Synthetic ${profile}/${rule}`,
-                    rules: [require(`../lib/rules/${category}/${rule}`)],
-                    config: {
-                        ...config,
-                        ...test.config,
-                    },
-                },
-                events: buildHandler(test, true, done),
-                ...test.options,
-            };
-            new Specberus(process.env.W3C_API_KEY).validate(options);
+            import(`../lib/profiles/${docType}/${suffix}.js`).then(
+                ({ config }) => {
+                    import(`../lib/rules/${category}/${rule}.js`).then(
+                        ruleModule => {
+                            const options = {
+                                url,
+                                profile: {
+                                    name: `Synthetic ${profile}/${rule}`,
+                                    rules: [ruleModule],
+                                    config: {
+                                        ...config,
+                                        ...test.config,
+                                    },
+                                },
+                                events: buildHandler(test, true, done),
+                                ...test.options,
+                            };
+                            new Specberus().validate(options);
+                        }
+                    );
+                }
+            );
         });
     });
 }
 
-// ignore .DS_Store from Mac
-function listFilesOf(dir) {
-    const files = readdirSync(dir);
-    const blocklist = ['.DS_Store', 'Base.js'];
-
-    return files.filter(v => !blocklist.find(b => v.includes(b)));
-}
-
-function runTestsForProfile(file, { docType, track }) {
-    const base = `${process.cwd()}/test/data`;
-    const lastDot = file.lastIndexOf('.');
-    const profile = file.substring(0, lastDot);
-
+function runTestsForProfile({ docType, track, profile, rules }) {
     // Profile: CR/NOTE/RY ...
     describe(`Profile: ${profile}`, () => {
-        const suffix = track ? `${track}/${file}` : file;
-        const config = require(`${base}/${docType}/${suffix}`);
-
-        Object.entries(config.rules).forEach(([category, rules]) => {
+        Object.entries(rules).forEach(([category, rules]) => {
             Object.entries(rules).forEach(([rule, tests]) => {
                 // Rule: hr/logo ...
                 describe(`Rule: ${category}.${rule}`, () => {
                     checkRule(tests, {
                         docType,
                         track,
-                        profile,
+                        profile: profile.substring(0, profile.lastIndexOf('.')),
                         category,
                         rule,
                     });
@@ -542,31 +385,39 @@ function runTestsForProfile(file, { docType, track }) {
     });
 }
 
+const badTestCases = await buildBadTestCases();
+
 // The next check runs every rule for each profile, one rule at a time, and should trigger every existing errors and warnings in lib/l10n-en_GB.js
 describe('Making sure Specberus is not broken...', () => {
-    const base = `${process.cwd()}/test/data`;
-    listFilesOf(base)
-        .filter(v => lstatSync(`${base}/${v}`).isDirectory())
-        .forEach(docType => {
-            // DocType: TR/SUMB
-            describe(`DocType: ${docType}:`, () => {
-                listFilesOf(`${base}/${docType}`).forEach(track => {
-                    const isProfile = lstatSync(
-                        `${base}/${docType}/${track}`
-                    ).isFile();
-
+    Object.entries(badTestCases).forEach(([docType, tracksOrProfiles]) => {
+        // DocType: TR/SUMB
+        describe(`DocType: ${docType}`, () => {
+            Object.entries(tracksOrProfiles).forEach(
+                ([trackOrProfile, profilesOrRules]) => {
                     // Profile: SUBM
-                    if (isProfile) {
-                        runTestsForProfile(track, { docType });
+                    if (trackOrProfile === 'MEM-SUBM.js') {
+                        runTestsForProfile({
+                            docType,
+                            profile: trackOrProfile,
+                            rules: profilesOrRules,
+                        });
                         return;
                     }
+
                     // Track: Note/Recommendation/Registry
-                    describe(`Track: ${track}`, () => {
-                        listFilesOf(`${base}/${docType}/${track}`).forEach(
-                            file => runTestsForProfile(file, { docType, track })
+                    describe(`Track: ${trackOrProfile}`, () => {
+                        Object.entries(profilesOrRules).forEach(
+                            ([profile, rules]) =>
+                                runTestsForProfile({
+                                    docType,
+                                    track: trackOrProfile,
+                                    profile,
+                                    rules,
+                                })
                         );
                     });
-                });
-            });
+                }
+            );
         });
+    });
 });

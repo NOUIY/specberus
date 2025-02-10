@@ -14,21 +14,21 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [14.x, 16.x]
+        node-version: [18.x, 20.x, 22.x]
     steps:
       - name: Checkout
         if: ${{ github.event_name != 'pull_request_target' }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Checkout PR
         if: ${{ github.event_name == 'pull_request_target' }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -36,17 +36,3 @@ jobs:
       - run: npm ci
 
       - run: npm run coverage
-        env:
-          W3C_API_KEY: ${{ secrets.W3C_API_KEY }}
-
-      - name: Notify failure
-        uses: rectalogic/notify-irc@v1
-        if: failure() && github.event.pull_request.draft == false
-        with:
-          server: 'irc.w3.org'
-          port: 6679
-          channel: '#pubrules'
-          nickname: gh-action-notifier
-          tls: true
-          message: |
-            ${{ github.actor }} pushed to ${{ github.repository }}. https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} FAILED with node ${{ matrix.node-version}} (PR: ${{ github.event.pull_request.html_url }})

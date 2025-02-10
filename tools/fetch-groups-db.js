@@ -3,10 +3,13 @@
 
 // XXX also look at https://cvs.w3.org/Team/WWW/2000/04/mem-news/groups.rdf
 
-const fs = require('fs');
-const pth = require('path');
-const ua = require('superagent');
-const { JSDOM } = require('jsdom');
+import fs from 'fs';
+import { JSDOM } from 'jsdom';
+import pth, { dirname } from 'path';
+import ua from 'superagent';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const user = process.argv[2];
 const pass = process.argv[3];
@@ -46,7 +49,6 @@ function munge(err, res) {
             td4.querySelectorAll('a').forEach(element => {
                 let list = element.textContent;
                 if (!/@w3\.org$/.test(list)) list += '@w3.org';
-                // eslint-disable-next-line no-unused-expressions
                 if (href.indexOf('http') === 0) true;
                 else if (href.indexOf('/') === 0)
                     href = `https://www.w3.org${href}`;
